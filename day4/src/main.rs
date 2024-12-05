@@ -1,10 +1,9 @@
 mod matrix;
 
-use std::{env, fs, path::Path};
 use matrix::*;
+use std::{env, fs, path::Path};
 
 use itertools::Itertools;
-use nalgebra::{Dyn, OMatrix};
 
 static MATCH_SEQUENCES: [&str; 2] = ["XMAS", "SAMX"];
 static MATCH_SEQUENCES_CROSS: [&str; 2] = ["MAS", "SAM"];
@@ -14,6 +13,10 @@ fn main() {
     let raw_input: String = read_input(args.get(1).unwrap_or(&String::from("input.txt")));
     let matrix = TraversableMatrix::from(raw_input);
     println!("Word count: {}", inspect(&matrix));
+    println!(
+        "Word count on cross patterns: {}",
+        inspect_cross_patterns(&matrix)
+    );
 }
 
 fn read_input<P: AsRef<Path>>(file: P) -> String {
@@ -39,28 +42,43 @@ fn inspect(matrix: &TraversableMatrix<char>) -> usize {
 
     // Scan diagonally
     for diag in matrix.diagonal_iter() {
-        for window in diag.sequence().iter().tuple_windows::<(_, _, _, _)>() {
-            scan_window(window, &mut match_counter);
+        for window in diag.coord_sequence().iter().tuple_windows::<(_, _, _, _)>() {
+            scan_window(
+                (window.0 .1, window.1 .1, window.2 .1, window.3 .1),
+                &mut match_counter,
+            );
         }
     }
 
     match_counter
 }
 
-/// Function to compute the "cross" of a given set of diagonal coordinates
-fn compute_cross(coordinates: &[(usize, usize)]) -> Vec<(usize, usize)> {
-    // Find the min and max y-coordinates
-    let min_y = coordinates.iter().map(|&(_, y)| y).min().unwrap();
-    let max_y = coordinates.iter().map(|&(_, y)| y).max().unwrap();
+fn inspect_cross_patterns(matrix: &TraversableMatrix<char>) -> usize {
+    let mut match_counter: usize = 0;
 
-    // Compute the middle y-coordinate (center of the diagonal)
-    let mid_y = (min_y + max_y) / 2;
+    for diag in matrix.left_diagonal_iter() {
+        for window in diag.coord_sequence().iter().tuple_windows::<(_, _, _)>() {
+            let window_slice = matrix.slice(window.0 .0, window.2 .0);
+            for seq in MATCH_SEQUENCES_CROSS {
+                if vec![window.0 .1, window.1 .1, window.2 .1]
+                    .into_iter()
+                    .join("")
+                    .as_str()
+                    .eq(seq)
+                {
+                    if let Some(cross_sequence) = window_slice.cross_slice() {
+                        if MATCH_SEQUENCES_CROSS
+                            .contains(&cross_sequence.sequence_content().as_str())
+                        {
+                            match_counter += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    // Compute the cross coordinates
-    coordinates
-        .iter()
-        .map(|&(x, y)| (x, 2 * mid_y - y)) // Reflect y across mid_y
-        .collect()
+    match_counter
 }
 
 fn scan_window(window: (&char, &char, &char, &char), match_counter: &mut usize) {

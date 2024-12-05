@@ -1,5 +1,7 @@
-use std::io::Chain;
-use nalgebra::{iter::{ColumnIter, RowIter}, Dyn, Matrix, OMatrix, Scalar};
+use nalgebra::{
+    iter::{ColumnIter, RowIter},
+    Dyn, Matrix, OMatrix, Scalar,
+};
 
 type DMatrixiChar = OMatrix<char, Dyn, Dyn>;
 
@@ -7,7 +9,7 @@ type DMatrixiChar = OMatrix<char, Dyn, Dyn>;
 pub enum DiagonalDirection {
     Left,
     Right,
-    Both
+    Both,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -19,12 +21,11 @@ impl From<&(usize, usize)> for Point {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MatrixSlice<'a, T: Scalar> {
     matrix: &'a OMatrix<T, Dyn, Dyn>,
     start: Point,
     end: Point,
-    sequence: Vec<T>,
 }
 
 impl<'a, T: Scalar> MatrixSlice<'a, T> {
@@ -36,11 +37,17 @@ impl<'a, T: Scalar> MatrixSlice<'a, T> {
         self.end
     }
 
-    pub fn sequence(&self) -> &Vec<T> {
-        &self.sequence
+    pub fn coord_sequence(&self) -> Vec<(Point, &T)> {
+        let mut out = vec![];
+        let path = Self::points_between(self.start(), self.end());
+        for point in path {
+            out.push((point, self.matrix.get((point.0, point.1)).unwrap()));
+        }
+
+        out
     }
 
-    pub fn points_between_diagonal(start: Point, end: Point) -> Option<Vec<Point>> {
+    pub fn diagonal_points(start: Point, end: Point) -> Option<Vec<Point>> {
         if end.0.abs_diff(start.0) != end.1.abs_diff(start.1) {
             None
         } else {
@@ -70,16 +77,78 @@ impl<'a, T: Scalar> MatrixSlice<'a, T> {
             Some(coordinates)
         }
     }
+
+    /// Function to find all points between two coordinates in a matrix
+    pub fn points_between(start: Point, end: Point) -> Vec<Point> {
+        let (x1, y1) = (start.0, start.1);
+        let (x2, y2) = (end.0, end.1);
+
+        // Calculate the direction of movement
+        let step_x = if x2 > x1 {
+            1
+        } else if x2 < x1 {
+            -1
+        } else {
+            0
+        };
+        let step_y = if y2 > y1 {
+            1
+        } else if y2 < y1 {
+            -1
+        } else {
+            0
+        };
+
+        // Calculate the number of steps needed (maximum of row or column distance)
+        let steps =
+            ((x2 as isize - x1 as isize).abs()).max((y2 as isize - y1 as isize).abs()) as usize;
+
+        // Collect all points along the line
+        let mut points = Vec::new();
+        for i in 0..=steps {
+            let x = (x1 as isize + i as isize * step_x) as usize;
+            let y = (y1 as isize + i as isize * step_y) as usize;
+            points.push(Point(x, y));
+        }
+
+        points
+    }
+
+    pub fn cross_slice(&self) -> Option<MatrixSlice<'_, T>> {
+        let slice = MatrixSlice::<T>::diagonal_points(self.start(), self.end());
+        let binding = slice
+            .unwrap()
+            .iter()
+            .map(|p| (p.0, p.1))
+            .collect::<Vec<(usize, usize)>>();
+        let slice = binding.as_slice();
+        let coords = compute_cross(slice);
+
+        let mut content = vec![];
+        for coord in coords.iter() {
+            let item = self.matrix.get(*coord).unwrap();
+            content.push(item.clone());
+        }
+
+        Some(MatrixSlice {
+            start: Point::from(coords.first().unwrap()),
+            end: Point::from(coords.last().unwrap()),
+            matrix: &self.matrix,
+        })
+    }
 }
 
 impl<'a> MatrixSlice<'a, char> {
     pub fn sequence_content(&self) -> String {
-        self.sequence.iter().collect()
+        self.coord_sequence()
+            .iter()
+            .map(|(_point, item)| *item)
+            .collect()
     }
 }
 
 pub struct TraversableMatrix<T: Scalar> {
-    inner: OMatrix<T, Dyn, Dyn>
+    inner: OMatrix<T, Dyn, Dyn>,
 }
 
 impl<S: AsRef<str>> From<S> for TraversableMatrix<char> {
@@ -97,25 +166,27 @@ impl<S: AsRef<str>> From<S> for TraversableMatrix<char> {
         });
         rows += 1;
 
-        let matrix: OMatrix<char, Dyn, Dyn> = DMatrixiChar::from_row_iterator(rows, cols, chars_matrix);
-        
-        Self {
-            inner: matrix
-        }
+        let matrix: OMatrix<char, Dyn, Dyn> =
+            DMatrixiChar::from_row_iterator(rows, cols, chars_matrix);
+
+        Self { inner: matrix }
     }
 }
 
-impl<T: Scalar> AsRef<Matrix<T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>>> for TraversableMatrix<T> {
+impl<T: Scalar> AsRef<Matrix<T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>>>
+    for TraversableMatrix<T>
+{
     fn as_ref(&self) -> &Matrix<T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
         self.inner()
     }
 }
 
+#[allow(unused)]
 impl<T: Scalar> TraversableMatrix<T> {
     pub fn inner(&self) -> &Matrix<T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
         &self.inner
     }
-    
+
     pub fn row_iter(&self) -> RowIter<'_, T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
         self.inner.row_iter()
     }
@@ -135,25 +206,26 @@ impl<T: Scalar> TraversableMatrix<T> {
     pub fn diagonal_iter(&self) -> DiagonalIter<T> {
         DiagonalIter::new(self, DiagonalDirection::Both)
     }
+
+    pub fn slice(&self, start: Point, end: Point) -> MatrixSlice<'_, T> {
+        MatrixSlice {
+            matrix: &self.inner,
+            start,
+            end,
+        }
+    }
 }
 
 pub struct DiagonalIter<'a, T: Scalar> {
-    direction: DiagonalDirection,
-    matrix: &'a TraversableMatrix<T>,
     values: Vec<MatrixSlice<'a, T>>,
-    idx: usize
+    idx: usize,
 }
 
 impl<'a, T: Scalar> DiagonalIter<'a, T> {
     fn new(matrix: &'a TraversableMatrix<T>, direction: DiagonalDirection) -> Self {
         let values = get_diagonals(&matrix.inner, direction);
 
-        Self {
-            direction,
-            matrix,
-            values,
-            idx: 0
-        }
+        Self { values, idx: 0 }
     }
 }
 
@@ -167,7 +239,10 @@ impl<'a, T: Scalar> Iterator for DiagonalIter<'a, T> {
     }
 }
 
-fn get_diagonals<'a, T: Scalar>(matrix: &'a OMatrix<T, Dyn, Dyn>, direction: DiagonalDirection) -> Vec<MatrixSlice<'a, T>> {
+fn get_diagonals<'a, T: Scalar>(
+    matrix: &'a OMatrix<T, Dyn, Dyn>,
+    direction: DiagonalDirection,
+) -> Vec<MatrixSlice<'a, T>> {
     let nrows = matrix.nrows();
     let ncols = matrix.ncols();
     let mut diagonals: Vec<MatrixSlice<'a, T>> = Vec::new();
@@ -178,34 +253,32 @@ fn get_diagonals<'a, T: Scalar>(matrix: &'a OMatrix<T, Dyn, Dyn>, direction: Dia
             let mut i = start_row;
             let mut j = 0;
             let mut diagonal = Vec::new();
-    
+
             while i < nrows && j < ncols {
                 diagonal.push(matrix[(i, j)].clone());
                 i += 1;
                 j += 1;
             }
-    
+
             diagonals.push(MatrixSlice {
-                sequence: diagonal,
                 start: Point(start_row, 0),
                 end: Point(i - 1, j - 1),
                 matrix,
             });
         }
-    
+
         for start_col in 1..ncols {
             let mut i = 0;
             let mut j = start_col;
             let mut diagonal = Vec::new();
-    
+
             while i < nrows && j < ncols {
                 diagonal.push(matrix[(i, j)].clone());
                 i += 1;
                 j += 1;
             }
-    
+
             diagonals.push(MatrixSlice {
-                sequence: diagonal,
                 start: Point(0, start_col),
                 end: Point(i - 1, j - 1),
                 matrix,
@@ -219,7 +292,7 @@ fn get_diagonals<'a, T: Scalar>(matrix: &'a OMatrix<T, Dyn, Dyn>, direction: Dia
             let mut i = 0;
             let mut j = start_col;
             let mut diagonal = Vec::new();
-    
+
             while i < nrows {
                 diagonal.push(matrix[(i, j)].clone());
                 i += 1;
@@ -229,20 +302,19 @@ fn get_diagonals<'a, T: Scalar>(matrix: &'a OMatrix<T, Dyn, Dyn>, direction: Dia
                     j -= 1;
                 }
             }
-    
+
             diagonals.push(MatrixSlice {
-                sequence: diagonal,
                 start: Point(0, start_col),
                 end: Point(i - 1, j + 1),
                 matrix,
             });
         }
-    
+
         for start_row in 1..nrows {
             let mut i = start_row;
             let mut j = ncols - 1;
             let mut diagonal = Vec::new();
-    
+
             while i < nrows {
                 diagonal.push(matrix[(i, j)].clone());
                 i += 1;
@@ -255,7 +327,6 @@ fn get_diagonals<'a, T: Scalar>(matrix: &'a OMatrix<T, Dyn, Dyn>, direction: Dia
             // Skip the central diagonal if it's already added
             if diagonal.len() != nrows && direction == DiagonalDirection::Both {
                 diagonals.push(MatrixSlice {
-                    sequence: diagonal,
                     start: Point(start_row, ncols - 1),
                     end: Point(i - 1, j + 1),
                     matrix,
@@ -265,4 +336,24 @@ fn get_diagonals<'a, T: Scalar>(matrix: &'a OMatrix<T, Dyn, Dyn>, direction: Dia
     }
 
     diagonals
+}
+
+/// Function to compute the "cross" of a given set of diagonal coordinates
+fn compute_cross(coordinates: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    // Find the min and max y-coordinates
+    let min_y = coordinates.iter().map(|&(_, y)| y).min().unwrap();
+    let max_y = coordinates.iter().map(|&(_, y)| y).max().unwrap();
+
+    // Compute the middle y-coordinate (center of the diagonal)
+    let mid_y = (min_y + max_y) / 2;
+
+    // Compute the cross coordinates
+    coordinates
+        .iter()
+        .filter_map(|&(x, y)| {
+            // Reflect y across mid_y using checked subtraction
+            let reflected_y = mid_y.checked_mul(2)?.checked_sub(y);
+            reflected_y.map(|new_y| (x, new_y))
+        })
+        .collect()
 }
