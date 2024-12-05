@@ -3,7 +3,7 @@ use std::{collections::HashSet, env, fs, path::Path};
 fn main() {
     // PART ONE
     let args: Vec<String> = env::args().collect();
-    let (list1, list2) = read_input(args.first().expect("Input file path not specified"));
+    let (list1, list2) = read_input(args.get(1).unwrap_or(&String::from("input.txt")));
     println!("Total distance = {}", distance_of(&list1, &list2));
 
     // PART TWO

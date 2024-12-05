@@ -6,7 +6,7 @@ use program::Program;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let rc: i32 = Program::new(read_input(args.first().expect("Input file path not specified"))).execute();
+    let rc: i32 = Program::new(read_input(args.get(1).unwrap_or(&String::from("input.txt")))).execute();
     println!("Program output: {}", rc);
 }
 
