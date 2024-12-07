@@ -1,41 +1,57 @@
+use rayon::prelude::*;
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub struct Map {
     width: usize,
     height: usize,
-    cells: Vec<Cell>
+    cells: Vec<Cell>,
+    guard_idx: Option<usize>
 }
 
 impl Map {
-    fn coords_to_index(&self, coords: (usize, usize)) -> usize {
+    pub fn coords_to_index(&self, coords: (usize, usize)) -> usize {
         (coords.0 * self.width) + coords.1
     }
 
-    fn index_to_coords(&self, index: usize) -> (usize, usize) {
+    pub fn index_to_coords(&self, index: usize) -> (usize, usize) {
         (index / self.width, index % self.width)
     }
 
-    pub fn get(&self, coords: (usize, usize)) -> Option<&Cell> {
+    pub fn len(&self) -> usize {
+        self.cells.len()
+    }
+
+    pub fn get_coords(&self, coords: (usize, usize)) -> Option<&Cell> {
         self.cells.get(self.coords_to_index(coords))
+    }
+
+    pub fn get_index(&self, index: usize) -> Option<&Cell> {
+        self.cells.get(index)
     }
 
     pub fn set(&mut self, index: usize, value: Cell) {
         if let Some(cell) = self.cells.get_mut(index) {
+            if value.is_guard() {
+                self.guard_idx = Some(index);
+            }
             *cell = value;
         }
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, Cell> {
-        self.cells.iter()
+    pub fn iter(&self) -> rayon::slice::Iter<'_, Cell> {
+        self.cells.par_iter()
     }
 
-    pub fn into_next(&self) -> Option<Map> {
-        let mut next_state = self.clone();
+    pub fn get_guard(&self) -> Option<(usize, &Cell)> {
+        self.guard_idx.map(|idx| (idx, self.cells.get(idx).unwrap()))
+    }
 
-        let maybe_guard = self.iter().enumerate().find(|(_idx, cell)| cell.is_guard());
+    pub fn next(&mut self) -> bool {
+        let maybe_guard = self.guard_idx.map(|idx| (idx, self.cells.get(idx.clone()).unwrap()));
         if let Some((index, guard)) = maybe_guard {
             let guard = guard.as_guard().expect("Expected Cell::Guard");
+            let guard_direction = guard.direction().clone();
             let (row, column) = self.index_to_coords(index);
 
             let next_guard_coords = match guard.direction {
@@ -70,36 +86,35 @@ impl Map {
             };
 
             if let Some(next_guard_cell_coords) = next_guard_coords {
-                let next_guard_cell = self.get(next_guard_cell_coords).unwrap();
-                if *next_guard_cell == Cell::Obstable {
-                    next_state.set(index, Cell::Guard(guard.rotate_right()))
+                let next_guard_cell = self.get_coords(next_guard_cell_coords).unwrap();
+                if *next_guard_cell == Cell::Obstacle {
+                    self.set(index, Cell::Guard(guard.rotate_right()))
                 } else {
-                    next_state.set(index, Cell::Visited);
-                    next_state.set(
+                    self.set(index, Cell::Visited);
+                    self.set(
                         self.coords_to_index(next_guard_cell_coords),
                         Cell::Guard(Guard {
-                            direction: guard.direction.clone(),
+                            direction: guard_direction,
                         }),
                     )
                 }
             } else {
                 // The guard will go outside the map
-                next_state.set(index, Cell::Visited);
+                self.set(index, Cell::Visited);
+                self.guard_idx = None;
             }
-            Some(next_state)
+            true
         } else {
-            None
+            false
         }
     }
 
     #[allow(unused)]
     pub fn pretty_print(&self) {
         for i in 0..self.width {
-            if i != 0 {
-                println!();
-            }
+            println!();
             for j in 0..self.height {
-                print!("{} ", self.get((i, j)).unwrap())
+                print!("{} ", self.get_coords((i, j)).unwrap())
             }
         }
         println!()
@@ -111,10 +126,16 @@ impl From<&str> for Map {
         let width = raw.lines().nth(0).expect("No first line in input").len();
         let height = raw.lines().count();
         let mut cells = vec![];
-
+        let mut guard_idx = None;
+        let mut i = 0;
         for line in raw.lines() {
             for char in line.chars() {
-                cells.push(Cell::from(char));
+                let cell = Cell::from(char);
+                if cell.is_guard() {
+                    guard_idx = Some(i);
+                }
+                cells.push(cell);
+                i += 1;
             }
         }
 
@@ -122,13 +143,14 @@ impl From<&str> for Map {
             width,
             height,
             cells,
+            guard_idx
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Cell {
-    Obstable,
+    Obstacle,
     Guard(Guard),
     Free,
     Visited,
@@ -156,7 +178,7 @@ impl Display for Cell {
             f,
             "{}",
             match self {
-                Cell::Obstable => "#",
+                Cell::Obstacle => "#",
                 Cell::Guard(guard) => guard.direction.symbol(),
                 Cell::Free => ".",
                 Cell::Visited => "X",
@@ -168,7 +190,7 @@ impl Display for Cell {
 impl From<char> for Cell {
     fn from(value: char) -> Self {
         match value {
-            '#' => Cell::Obstable,
+            '#' => Cell::Obstacle,
             '.' => Cell::Free,
             'X' => Cell::Visited,
             direction => Cell::Guard(Guard {
@@ -178,20 +200,25 @@ impl From<char> for Cell {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Guard {
     direction: Direction,
 }
 
+#[allow(unused)]
 impl Guard {
-    fn rotate_right(&self) -> Guard {
+    pub fn direction(&self) -> &Direction {
+        &self.direction
+    }
+
+    pub fn rotate_right(&self) -> Guard {
         Guard {
             direction: self.direction.rotate_right(),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Direction {
     Up,
     Right,
