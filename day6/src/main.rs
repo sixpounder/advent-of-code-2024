@@ -49,11 +49,14 @@ fn main() {
                     if let Some((current_guard_index, cell)) = current_state.get_guard() {
                         let guard = cell.as_guard();
                         if let Some(guard) = guard {
-                            if guard_path_buffer.contains(&(current_guard_index, guard.direction().clone())) {
+                            if guard_path_buffer
+                                .contains(&(current_guard_index, guard.direction().clone()))
+                            {
                                 *n_loops.lock().unwrap() += 1;
                                 break 'walk_guard;
                             } else {
-                                guard_path_buffer.insert((current_guard_index, guard.direction().clone()));
+                                guard_path_buffer
+                                    .insert((current_guard_index, guard.direction().clone()));
                             }
                         }
                     }

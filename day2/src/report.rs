@@ -40,13 +40,16 @@ impl Report {
                     for i in 0..self.levels.len() {
                         let mut permutation = self.levels.clone();
                         permutation.remove(i);
-                        safe_dampened = Report { levels: permutation }.is_safe(false).0;
+                        safe_dampened = Report {
+                            levels: permutation,
+                        }
+                        .is_safe(false)
+                        .0;
 
                         if safe_dampened {
                             break;
                         }
                     }
-                    
                 }
                 break;
             }

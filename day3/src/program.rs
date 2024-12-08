@@ -21,8 +21,18 @@ impl Program {
             } else if matched == "don't()" {
                 instructions.push(Instruction::Disable);
             } else {
-                let operand1: i32 = capture_match.get(1).expect("Syntax error: expected operand").as_str().parse().expect("Syntax error: operand must be a number");
-                let operand2: i32 = capture_match.get(2).expect("Syntax error: expected operand").as_str().parse().expect("Syntax error: operand must be a number");
+                let operand1: i32 = capture_match
+                    .get(1)
+                    .expect("Syntax error: expected operand")
+                    .as_str()
+                    .parse()
+                    .expect("Syntax error: operand must be a number");
+                let operand2: i32 = capture_match
+                    .get(2)
+                    .expect("Syntax error: expected operand")
+                    .as_str()
+                    .parse()
+                    .expect("Syntax error: operand must be a number");
                 instructions.push(Instruction::Mul(operand1, operand2));
             }
         }
@@ -39,7 +49,7 @@ impl Program {
                     if enable_math {
                         rc += op1 * op2;
                     }
-                },
+                }
                 Instruction::Enable => enable_math = true,
                 Instruction::Disable => enable_math = false,
             };

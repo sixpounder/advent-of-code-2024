@@ -19,11 +19,11 @@ fn similarity_score(list1: &Vec<u32>, list2: &Vec<u32>) -> u32 {
     })
 }
 
-fn read_input<P: AsRef<Path>>(file: P) -> (Vec<u32>, Vec<u32> ) {
+fn read_input<P: AsRef<Path>>(file: P) -> (Vec<u32>, Vec<u32>) {
     let raw_content = fs::read_to_string(file).expect("Could not read file");
     let mut list1: Vec<u32> = vec![];
     let mut list2: Vec<u32> = vec![];
-    
+
     raw_content.lines().for_each(|line| {
         let chunks: Vec<&str> = line.split("   ").collect();
         list1.push(chunks.get(0).unwrap().parse::<u32>().unwrap());

@@ -6,7 +6,7 @@ pub struct Map {
     width: usize,
     height: usize,
     cells: Vec<Cell>,
-    guard_idx: Option<usize>
+    guard_idx: Option<usize>,
 }
 
 impl Map {
@@ -44,11 +44,14 @@ impl Map {
     }
 
     pub fn get_guard(&self) -> Option<(usize, &Cell)> {
-        self.guard_idx.map(|idx| (idx, self.cells.get(idx).unwrap()))
+        self.guard_idx
+            .map(|idx| (idx, self.cells.get(idx).unwrap()))
     }
 
     pub fn next(&mut self) -> bool {
-        let maybe_guard = self.guard_idx.map(|idx| (idx, self.cells.get(idx.clone()).unwrap()));
+        let maybe_guard = self
+            .guard_idx
+            .map(|idx| (idx, self.cells.get(idx.clone()).unwrap()));
         if let Some((index, guard)) = maybe_guard {
             let guard = guard.as_guard().expect("Expected Cell::Guard");
             let guard_direction = guard.direction().clone();
@@ -61,28 +64,28 @@ impl Map {
                     } else {
                         None
                     }
-                },
+                }
                 Direction::Right => {
                     if column < self.width - 1 {
                         Some((row, column + 1))
                     } else {
                         None
                     }
-                },
+                }
                 Direction::Down => {
                     if row < self.height - 1 {
                         Some((row + 1, column))
                     } else {
                         None
                     }
-                },
+                }
                 Direction::Left => {
                     if column > 0 {
                         Some((row, column - 1))
                     } else {
                         None
                     }
-                },
+                }
             };
 
             if let Some(next_guard_cell_coords) = next_guard_coords {
@@ -143,7 +146,7 @@ impl From<&str> for Map {
             width,
             height,
             cells,
-            guard_idx
+            guard_idx,
         }
     }
 }
