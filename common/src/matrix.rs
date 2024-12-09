@@ -1,6 +1,6 @@
 use nalgebra::{
     iter::{ColumnIter, RowIter},
-    Dyn, Matrix, OMatrix, Scalar,
+    DMatrix, Dyn, Matrix, OMatrix, Scalar,
 };
 
 type DMatrixiChar = OMatrix<char, Dyn, Dyn>;
@@ -39,9 +39,13 @@ impl<'a, T: Scalar> MatrixSlice<'a, T> {
 
     pub fn coord_sequence(&self) -> Vec<(Point, &T)> {
         let mut out = vec![];
-        let path = Self::points_between(self.start(), self.end());
+        let path = points_between(self.start(), self.end());
         for point in path {
-            out.push((point, self.matrix.get((point.0, point.1)).unwrap()));
+            if let Some(item) = self.matrix.get((point.0, point.1)) {
+                out.push((point, item));
+            } else {
+                panic!("Cannot get item at point {} {}", point.0, point.1)
+            }
         }
 
         out
@@ -78,42 +82,6 @@ impl<'a, T: Scalar> MatrixSlice<'a, T> {
         }
     }
 
-    /// Function to find all points between two coordinates in a matrix
-    pub fn points_between(start: Point, end: Point) -> Vec<Point> {
-        let (x1, y1) = (start.0, start.1);
-        let (x2, y2) = (end.0, end.1);
-
-        // Calculate the direction of movement
-        let step_x = if x2 > x1 {
-            1
-        } else if x2 < x1 {
-            -1
-        } else {
-            0
-        };
-        let step_y = if y2 > y1 {
-            1
-        } else if y2 < y1 {
-            -1
-        } else {
-            0
-        };
-
-        // Calculate the number of steps needed (maximum of row or column distance)
-        let steps =
-            ((x2 as isize - x1 as isize).abs()).max((y2 as isize - y1 as isize).abs()) as usize;
-
-        // Collect all points along the line
-        let mut points = Vec::new();
-        for i in 0..=steps {
-            let x = (x1 as isize + i as isize * step_x) as usize;
-            let y = (y1 as isize + i as isize * step_y) as usize;
-            points.push(Point(x, y));
-        }
-
-        points
-    }
-
     pub fn cross_slice(&self) -> Option<MatrixSlice<'_, T>> {
         let slice = MatrixSlice::<T>::diagonal_points(self.start(), self.end());
         let binding = slice
@@ -147,6 +115,7 @@ impl<'a> MatrixSlice<'a, char> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct TraversableMatrix<T: Scalar> {
     inner: OMatrix<T, Dyn, Dyn>,
 }
@@ -183,8 +152,36 @@ impl<T: Scalar> AsRef<Matrix<T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>>>
 
 #[allow(unused)]
 impl<T: Scalar> TraversableMatrix<T> {
+    pub fn new_from_iter<I: IntoIterator<Item = T>>(
+        rows: usize,
+        cols: usize,
+        iter: I,
+    ) -> TraversableMatrix<T> {
+        Self {
+            inner: DMatrix::from_iterator(rows, cols, iter),
+        }
+    }
+
+    pub fn set(&mut self, at: Point, value: T) {
+        if let Some(point) = self.inner.get_mut((at.0, at.1)) {
+            *point = value;
+        }
+    }
+
     pub fn inner(&self) -> &Matrix<T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
         &self.inner
+    }
+
+    pub fn iter(
+        &self,
+    ) -> nalgebra::iter::MatrixIter<'_, T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
+        self.inner.iter()
+    }
+
+    pub fn iter_mut(
+        &mut self,
+    ) -> nalgebra::iter::MatrixIterMut<'_, T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
+        self.inner.iter_mut()
     }
 
     pub fn row_iter(&self) -> RowIter<'_, T, Dyn, Dyn, nalgebra::VecStorage<T, Dyn, Dyn>> {
@@ -290,7 +287,7 @@ fn get_diagonals<'a, T: Scalar>(
         // Diagonals from top-left to bottom-right
         for start_col in 0..ncols {
             let mut i = 0;
-            let mut j = start_col;
+            let mut j: usize = start_col;
             let mut diagonal = Vec::new();
 
             while i < nrows {
@@ -356,4 +353,43 @@ fn compute_cross(coordinates: &[(usize, usize)]) -> Vec<(usize, usize)> {
             reflected_y.map(|new_y| (x, new_y))
         })
         .collect()
+}
+
+/// Function to find all points between two coordinates in a matrix
+pub fn points_between(start: Point, end: Point) -> Vec<Point> {
+    let (x1, y1) = (start.0, start.1);
+    let (x2, y2) = (end.0, end.1);
+
+    // Calculate the direction of movement
+    let step_x = if x2 > x1 {
+        1
+    } else if x2 < x1 {
+        -1
+    } else {
+        0
+    };
+    let step_y = if y2 > y1 {
+        1
+    } else if y2 < y1 {
+        -1
+    } else {
+        0
+    };
+
+    // Calculate the number of steps needed (maximum of row or column distance)
+    let steps = ((x2 as isize - x1 as isize).abs()).max((y2 as isize - y1 as isize).abs()) as usize;
+
+    // Collect all points along the line
+    let mut points = Vec::new();
+    for i in 0..=steps {
+        let x = (x1 as isize + i as isize * step_x) as usize;
+        let y = (y1 as isize + i as isize * step_y) as usize;
+        points.push(Point(x, y));
+    }
+
+    points
+}
+
+pub fn distance(start: Point, end: Point) -> usize {
+    points_between(start, end).len() - 1
 }

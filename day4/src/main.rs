@@ -1,8 +1,6 @@
-mod matrix;
+use std::env;
 
-use matrix::*;
-use std::{env, fs, path::Path};
-
+use common::{matrix::TraversableMatrix, read_input};
 use itertools::Itertools;
 
 static MATCH_SEQUENCES: [&str; 2] = ["XMAS", "SAMX"];
@@ -10,17 +8,13 @@ static MATCH_SEQUENCES_CROSS: [&str; 2] = ["MAS", "SAM"];
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let raw_input: String = read_input(args.get(1).unwrap_or(&String::from("input.txt")));
+    let raw_input: String = read_input(args.get(1).unwrap_or(&String::from("day4/input.txt")));
     let matrix = TraversableMatrix::from(raw_input);
     println!("Word count: {}", inspect(&matrix));
     println!(
         "Word count on cross patterns: {}",
         inspect_cross_patterns(&matrix)
     );
-}
-
-fn read_input<P: AsRef<Path>>(file: P) -> String {
-    fs::read_to_string(file).expect("Could not read file")
 }
 
 fn inspect(matrix: &TraversableMatrix<char>) -> usize {

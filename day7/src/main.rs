@@ -1,8 +1,9 @@
 mod calculator;
 
-use std::{env, fs, path::Path};
+use std::env;
 
 use calculator::{CalibrationEquation, Operation};
+use common::read_input;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 fn main() {
@@ -46,8 +47,4 @@ fn main() {
         "Sum of solvable equation results (with || operator supported): {}",
         result
     );
-}
-
-fn read_input<P: AsRef<Path>>(file: P) -> String {
-    fs::read_to_string(file).expect("Could not read file")
 }
