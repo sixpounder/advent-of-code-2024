@@ -10,8 +10,7 @@ impl<S: AsRef<str>> From<S> for OrderingRule {
     fn from(value: S) -> Self {
         let chunks = value.as_ref().split("|").collect::<Vec<&str>>();
         Self {
-            before: chunks
-                .get(0)
+            before: chunks.first()
                 .expect("No chunk")
                 .parse::<i32>()
                 .expect("Not a number"),
@@ -158,8 +157,7 @@ impl SafetyManualUpdates {
                 if self
                     .ordering_rules
                     .iter()
-                    .find(|item| item.before == *other_num && item.after == *num)
-                    .is_some()
+                    .any(|item| item.before == *other_num && item.after == *num)
                 {
                     return false;
                 }

@@ -18,7 +18,7 @@ impl Report {
         let mut safe_dampened: bool = false;
         for (l, r) in self.levels.iter().tuple_windows() {
             let diff = l.abs_diff(*r);
-            correctly_spaced = diff >= 1 && diff <= 3;
+            correctly_spaced = (1..=3).contains(&diff);
 
             match sort_direction {
                 Some(direction) => {

@@ -51,12 +51,10 @@ impl CalibrationEquation {
         if self.operands.is_empty() && self.result != 0 {
             false
         } else {
-            let mut i = 0;
             let mut acc = operation_sequence.first().unwrap().neutral_operator();
-            for operand in self.operands.iter() {
+            for (i, operand) in self.operands.iter().enumerate() {
                 let operation = operation_sequence.get(i).unwrap();
                 acc = operation.apply(acc, *operand);
-                i += 1;
             }
 
             self.result == acc

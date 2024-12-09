@@ -28,7 +28,7 @@ pub struct MatrixSlice<'a, T: Scalar> {
     end: Point,
 }
 
-impl<'a, T: Scalar> MatrixSlice<'a, T> {
+impl<T: Scalar> MatrixSlice<'_, T> {
     pub fn start(&self) -> Point {
         self.start
     }
@@ -101,12 +101,12 @@ impl<'a, T: Scalar> MatrixSlice<'a, T> {
         Some(MatrixSlice {
             start: Point::from(coords.first().unwrap()),
             end: Point::from(coords.last().unwrap()),
-            matrix: &self.matrix,
+            matrix: self.matrix,
         })
     }
 }
 
-impl<'a> MatrixSlice<'a, char> {
+impl MatrixSlice<'_, char> {
     pub fn sequence_content(&self) -> String {
         self.coord_sequence()
             .iter()
@@ -361,19 +361,16 @@ pub fn points_between(start: Point, end: Point) -> Vec<Point> {
     let (x2, y2) = (end.0, end.1);
 
     // Calculate the direction of movement
-    let step_x = if x2 > x1 {
-        1
-    } else if x2 < x1 {
-        -1
-    } else {
-        0
+    let step_x = match x2.cmp(&x1) {
+        std::cmp::Ordering::Greater => 1,
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
     };
-    let step_y = if y2 > y1 {
-        1
-    } else if y2 < y1 {
-        -1
-    } else {
-        0
+
+    let step_y = match y2.cmp(&y1) {
+        std::cmp::Ordering::Greater => 1,
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
     };
 
     // Calculate the number of steps needed (maximum of row or column distance)

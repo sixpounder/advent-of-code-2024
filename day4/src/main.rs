@@ -84,5 +84,5 @@ fn scan_window(window: (&char, &char, &char, &char), match_counter: &mut usize) 
 }
 
 fn join_tuple_xmas<'a>(tuple: (&'a char, &'a char, &'a char, &'a char)) -> String {
-    vec![tuple.0, tuple.1, tuple.2, tuple.3].iter().join("")
+    [tuple.0, tuple.1, tuple.2, tuple.3].iter().join("")
 }

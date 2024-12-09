@@ -11,8 +11,8 @@ fn main() {
     println!("Similarity score is {}", similarity_score);
 }
 
-fn similarity_score(list1: &Vec<u32>, list2: &Vec<u32>) -> u32 {
-    let left = filter_uniq(list1.clone());
+fn similarity_score(list1: &[u32], list2: &[u32]) -> u32 {
+    let left = filter_uniq(list1.to_owned());
     left.iter().fold(0u32, |acc, el| {
         let n_times = list2.iter().filter(|right| *right == el).count();
         acc + (el * n_times as u32)
@@ -26,7 +26,7 @@ fn read_input<P: AsRef<Path>>(file: P) -> (Vec<u32>, Vec<u32>) {
 
     raw_content.lines().for_each(|line| {
         let chunks: Vec<&str> = line.split("   ").collect();
-        list1.push(chunks.get(0).unwrap().parse::<u32>().unwrap());
+        list1.push(chunks.first().unwrap().parse::<u32>().unwrap());
         list2.push(chunks.get(1).unwrap().parse::<u32>().unwrap());
     });
 
@@ -36,7 +36,7 @@ fn read_input<P: AsRef<Path>>(file: P) -> (Vec<u32>, Vec<u32>) {
     (list1, list2)
 }
 
-fn distance_of(list1: &Vec<u32>, list2: &Vec<u32>) -> u32 {
+fn distance_of(list1: &[u32], list2: &[u32]) -> u32 {
     list1.iter().enumerate().fold(0u32, |acc, (idx, left)| {
         let right = list2.get(idx).unwrap();
         let distance = left.abs_diff(*right);

@@ -11,7 +11,7 @@ fn main() {
     let raw_input: String = read_input(args.get(1).unwrap_or(&String::from("day7/input.txt")));
     let equations: Vec<CalibrationEquation> = raw_input
         .lines()
-        .map(|line| CalibrationEquation::from(line))
+        .map(CalibrationEquation::from)
         .collect();
     let result: u64 = equations
         .par_iter()
@@ -28,7 +28,7 @@ fn main() {
 
     let equations: Vec<CalibrationEquation> = raw_input
         .lines()
-        .map(|line| CalibrationEquation::from(line))
+        .map(CalibrationEquation::from)
         .collect();
     let result: u64 = equations
         .par_iter()

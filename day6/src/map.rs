@@ -51,7 +51,7 @@ impl Map {
     pub fn next(&mut self) -> bool {
         let maybe_guard = self
             .guard_idx
-            .map(|idx| (idx, self.cells.get(idx.clone()).unwrap()));
+            .map(|idx| (idx, self.cells.get(idx).unwrap()));
         if let Some((index, guard)) = maybe_guard {
             let guard = guard.as_guard().expect("Expected Cell::Guard");
             let guard_direction = guard.direction().clone();
@@ -161,10 +161,7 @@ pub enum Cell {
 
 impl Cell {
     pub fn is_guard(&self) -> bool {
-        match self {
-            Cell::Guard(_) => true,
-            _ => false,
-        }
+        matches!(self, Cell::Guard(_))
     }
 
     pub fn as_guard(&self) -> Option<&Guard> {
